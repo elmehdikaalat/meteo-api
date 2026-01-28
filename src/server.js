@@ -4,10 +4,8 @@ const meteoRoutes = require('./routes/meteo.routes');
 
 const app = express();
 
-// Middleware
 app.use(express.json());
 
-// Routes
 app.use('/meteo/v1', meteoRoutes);
 
 // 404 handler
