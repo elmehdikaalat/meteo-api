@@ -1,0 +1,10 @@
+{
+  "name": "meteo-scrapper",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "dependencies": {
+    "chokidar": "^3.6.0",
+    "mongodb": "^6.3.0",
+    "nmea-simple": "^3.3.0"
+  }
+}

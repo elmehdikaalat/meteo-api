@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: meteo-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - meteo-network
+    ports:
+      - "27017:27017"
+
+  scrapper:
+    build: ./scrapper
+    container_name: meteo-scrapper
+    depends_on:
+      - mongodb
+    environment:
+      MONGO_URI: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017
+    volumes:
+      - /dev/shm:/dev/shm:ro
+    networks:
+      - meteo-network
+    restart: unless-stopped
+
+  api:
+    build: ./api
+    container_name: meteo-api
+    depends_on:
+      - mongodb
+    environment:
+      MONGO_URI: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    networks:
+      - meteo-network
+    restart: unless-stopped
+
+volumes:
+  mongo-data:
+
+networks:
+  meteo-network:
+    driver: bridge
