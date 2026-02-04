@@ -27,9 +27,9 @@ services:
       - meteo-network
     restart: unless-stopped
 
-  api:
+  meteoapi:
     build: ./api
-    container_name: meteo-api
+    container_name: meteoapi
     depends_on:
       - mongodb
     environment:
