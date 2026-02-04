@@ -21,10 +21,12 @@ async function saveSensorData(filePath) {
   try {
     const data = fs.readFileSync(filePath, 'utf8');
     const sensorData = JSON.parse(data);
-    
+
     const gpsData = fs.readFileSync('/dev/shm/gpsNmea', 'utf8');
     const location = parseGPS(gpsData);
-    
+
+    const rainCount = getRainCount();
+
     const measurements = {};
     sensorData.measure.forEach(m => {
       measurements[m.name] = {
@@ -32,13 +34,18 @@ async function saveSensorData(filePath) {
         unit: m.unit
       };
     });
-    
+
+    measurements.rain = {
+      value: rainCount,
+      unit: 'events'
+    };
+
     const document = {
       timestamp: new Date(),
       location,
       measurements
     };
-    
+
     await measurementsCollection.insertOne(document);
     console.log('Saved measurement:', document.timestamp);
   } catch (error) {
@@ -46,10 +53,20 @@ async function saveSensorData(filePath) {
   }
 }
 
+function getRainCount() {
+  try {
+    const rainData = fs.readFileSync('/dev/shm/rainCounter.log', 'utf8');
+    return rainData.trim().split('\n').length;
+  } catch (error) {
+    console.warn('Rain data not available:', error.message);
+    return 0;
+  }
+}
+
 function parseGPS(data) {
   const lines = data.trim().split('\n');
   let location = { lat: null, long: null };
-  
+
   lines.forEach(line => {
     try {
       const packet = NMEA.parseNmeaSentence(line);
@@ -61,13 +78,13 @@ function parseGPS(data) {
       console.warn(`Invalid NMEA sentence: ${line.substring(0, 20)}...`);
     }
   });
-  
+
   return location;
 }
 
 async function startWatcher() {
   await connect();
-  
+
   const watcher = chokidar.watch('/dev/shm/sensors', {
     persistent: true,
     ignoreInitial: false,
@@ -76,17 +93,17 @@ async function startWatcher() {
       pollInterval: 100
     }
   });
-  
+
   watcher.on('change', (path) => {
     console.log('File changed:', path);
     saveSensorData(path);
   });
-  
+
   watcher.on('add', (path) => {
     console.log('File added:', path);
     saveSensorData(path);
   });
-  
+
   console.log('Watching /dev/shm/sensors...');
 }
 
