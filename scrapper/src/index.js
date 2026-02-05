@@ -17,6 +17,36 @@ async function connect() {
   console.log('Connected to MongoDB');
 }
 
+async function notifyAPI(data) {
+  try {
+    const payload = JSON.stringify(data);
+    const req = http.request(
+      `${API_URL}/internal/notify`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': payload.length
+        }
+      },
+      (res) => {
+        if (res.statusCode !== 200) {
+          console.warn('API notification failed:', res.statusCode);
+        }
+      }
+    );
+    
+    req.on('error', (e) => {
+      console.warn('API notification error:', e.message);
+    });
+    
+    req.write(payload);
+    req.end();
+  } catch (error) {
+    console.warn('Failed to notify API:', error.message);
+  }
+}
+
 async function saveSensorData(filePath) {
   try {
     const data = fs.readFileSync(filePath, 'utf8');
@@ -48,6 +78,13 @@ async function saveSensorData(filePath) {
 
     await measurementsCollection.insertOne(document);
     console.log('Saved measurement:', document.timestamp);
+
+
+    await notifyAPI({
+      date: document.timestamp,
+      location: document.location,
+      measurements: document.measurements
+    });
   } catch (error) {
     console.error('Error saving sensor data:', error.message);
   }
