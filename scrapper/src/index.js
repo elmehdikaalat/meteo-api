@@ -2,9 +2,11 @@ const chokidar = require('chokidar');
 const fs = require('fs');
 const NMEA = require('nmea-simple');
 const { MongoClient } = require('mongodb');
+const http = require('http');
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017';
 const DB_NAME = 'meteo';
+const API_URL = process.env.API_URL || 'http://meteoapi:3000';
 
 let db;
 let measurementsCollection;
@@ -20,21 +22,22 @@ async function connect() {
 async function notifyAPI(data) {
   try {
     const payload = JSON.stringify(data);
-    const req = http.request(
-      `${API_URL}/internal/notify`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': payload.length
-        }
-      },
-      (res) => {
-        if (res.statusCode !== 200) {
-          console.warn('API notification failed:', res.statusCode);
-        }
+    const options = {
+      hostname: 'meteoapi',
+      port: 3000,
+      path: '/meteo/v1/internal/notify',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload)
       }
-    );
+    };
+    
+    const req = http.request(options, (res) => {
+      if (res.statusCode !== 200) {
+        console.warn('API notification failed:', res.statusCode);
+      }
+    });
     
     req.on('error', (e) => {
       console.warn('API notification error:', e.message);

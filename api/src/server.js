@@ -39,7 +39,7 @@ app.use((err, req, res, next) => {
 });
 
 connect().then(() => {
-  app.listen(config.PORT, () => {
+  server.listen(config.PORT, '0.0.0.0', () => {
     console.log(`Meteo API running on port ${config.PORT}`);
     console.log(`WebSocket available at ws://localhost:${config.PORT}`);
   });
