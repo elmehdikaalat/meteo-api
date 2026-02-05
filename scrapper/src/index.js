@@ -68,8 +68,8 @@ async function saveSensorData(filePath) {
     });
 
     measurements.rain = {
-      value: rainEventCount,
-      unit: 'events'
+      value: rainEventCount * 0.2794,
+      unit: 'mm'
     };
 
     const document = {
@@ -81,7 +81,6 @@ async function saveSensorData(filePath) {
     await measurementsCollection.insertOne(document);
     console.log('Saved measurement:', document.timestamp, `- Rain events: ${rainEventCount}`);
 
-    // Reset counter after save
     rainEventCount = 0;
 
     await notifyAPI({
