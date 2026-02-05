@@ -8,16 +8,20 @@ var cors = require('cors')
 
 const app = express();
 
-const server = http.createServer(app);
-initializeWebSocket(server);
-
-app.use(express.json());
-app.use('/meteo/v1', meteoRoutes);
-
 app.use(cors({
   origin: '*',
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+app.use(express.json());
+
+const server = http.createServer(app);
+initializeWebSocket(server);
+app.use('/meteo/v1', meteoRoutes);
+
+
 
 app.use((req, res) => {
   res.status(404).json({
