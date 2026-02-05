@@ -1,21 +1,14 @@
 #!/bin/bash
 set -e
 
-echo "Loading Docker images..."
-docker load -i ~/meteo-images.tar
+echo "Loading images..."
+docker load -i meteo-images.tar
 
-cd ~/meteo
-
-if [ ! -f .env ]; then
-    cat > .env << EOF
-MONGO_USER=admin
-MONGO_PASSWORD=ensg2024
-EOF
-fi
-
+echo "Starting services..."
 docker-compose up -d
 
-echo "Checking meteoapi service..."
-docker-compose ps meteoapi
+echo "Waiting..."
+sleep 10
 
-echo "API: http://localhost:3000/meteo/v1/live?data=temperature"
+docker-compose ps
+echo "Deployment complete!"
