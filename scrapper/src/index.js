@@ -10,6 +10,7 @@ const API_URL = process.env.API_URL || 'http://meteoapi:3000';
 
 let db;
 let measurementsCollection;
+let rainEventCount = 0;
 
 async function connect() {
   const client = new MongoClient(MONGO_URI);
@@ -58,8 +59,6 @@ async function saveSensorData(filePath) {
     const gpsData = fs.readFileSync('/dev/shm/gpsNmea', 'utf8');
     const location = parseGPS(gpsData);
 
-    const rainCount = getRainCount();
-
     const measurements = {};
     sensorData.measure.forEach(m => {
       measurements[m.name] = {
@@ -69,7 +68,7 @@ async function saveSensorData(filePath) {
     });
 
     measurements.rain = {
-      value: rainCount,
+      value: rainEventCount,
       unit: 'events'
     };
 
@@ -80,8 +79,10 @@ async function saveSensorData(filePath) {
     };
 
     await measurementsCollection.insertOne(document);
-    console.log('Saved measurement:', document.timestamp);
+    console.log('Saved measurement:', document.timestamp, `- Rain events: ${rainEventCount}`);
 
+    // Reset counter after save
+    rainEventCount = 0;
 
     await notifyAPI({
       date: document.timestamp,
@@ -93,14 +94,9 @@ async function saveSensorData(filePath) {
   }
 }
 
-function getRainCount() {
-  try {
-    const rainData = fs.readFileSync('/dev/shm/rainCounter.log', 'utf8');
-    return rainData.trim().split('\n').length;
-  } catch (error) {
-    console.warn('Rain data not available:', error.message);
-    return 0;
-  }
+function incrementRainCount() {
+  rainEventCount++;
+  console.log(`Rain event detected. Total count: ${rainEventCount}`);
 }
 
 function parseGPS(data) {
@@ -125,7 +121,18 @@ function parseGPS(data) {
 async function startWatcher() {
   await connect();
 
-  const watcher = chokidar.watch('/dev/shm/sensors', {
+  try {
+    const data = fs.readFileSync('/dev/shm/rainCounter.log', 'utf8').trim();
+    if (data) {
+      const lines = data.split('\n').filter(l => l.length > 0);
+      rainEventCount = lines.length;
+      console.log(`Initial rain count loaded: ${rainEventCount}`);
+    }
+  } catch (error) {
+    console.log('No initial rain data, starting at 0');
+  }
+
+  const sensorsWatcher = chokidar.watch('/dev/shm/sensors', {
     persistent: true,
     ignoreInitial: false,
     awaitWriteFinish: {
@@ -134,17 +141,34 @@ async function startWatcher() {
     }
   });
 
-  watcher.on('change', (path) => {
-    console.log('File changed:', path);
+  sensorsWatcher.on('change', (path) => {
+    console.log('Sensors file changed:', path);
     saveSensorData(path);
   });
 
-  watcher.on('add', (path) => {
-    console.log('File added:', path);
+  sensorsWatcher.on('add', (path) => {
+    console.log('Sensors file added:', path);
     saveSensorData(path);
   });
 
-  console.log('Watching /dev/shm/sensors...');
+  const rainWatcher = chokidar.watch('/dev/shm/rainCounter.log', {
+    persistent: true,
+    ignoreInitial: true,
+    awaitWriteFinish: {
+      stabilityThreshold: 50,
+      pollInterval: 50
+    }
+  });
+
+  rainWatcher.on('change', () => {
+    incrementRainCount();
+  });
+
+  rainWatcher.on('add', () => {
+    incrementRainCount();
+  });
+
+  console.log('Watching /dev/shm/sensors and /dev/shm/rainCounter.log...');
 }
 
 startWatcher().catch(console.error);
