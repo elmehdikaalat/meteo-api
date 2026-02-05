@@ -6,8 +6,11 @@ function initializeWebSocket(server) {
   io = new Server(server, {
     cors: {
       origin: "*",
-      methods: ["GET", "POST"]
-    }
+      methods: ["GET", "POST"],
+      credentials: false
+    },
+    path: '/socket.io/',
+    transports: ['websocket', 'polling']
   });
 
   io.on('connection', (socket) => {
@@ -17,14 +20,14 @@ function initializeWebSocket(server) {
 
     socket.on('subscribe', (params) => {
       const { measurements } = params || {};
-      
+
       if (measurements && Array.isArray(measurements)) {
         socket.data.filter = measurements;
       }
-      
+
       socket.join('live-data');
-      socket.emit('subscribed', { 
-        measurements: measurements || 'all' 
+      socket.emit('subscribed', {
+        measurements: measurements || 'all'
       });
       console.log(`Client ${socket.id} subscribed to:`, measurements || 'all');
     });
@@ -41,11 +44,11 @@ function emitLiveData(data) {
   if (!io) return;
 
   const room = io.to('live-data');
-  
+
   room.fetchSockets().then(sockets => {
     sockets.forEach(socket => {
       const filter = socket.data.filter;
-      
+
       if (!filter) {
         socket.emit('live-update', data);
       } else {
@@ -56,13 +59,13 @@ function emitLiveData(data) {
             measurements: {}
           }
         };
-        
+
         filter.forEach(key => {
           if (data.data.measurements[key]) {
             filtered.data.measurements[key] = data.data.measurements[key];
           }
         });
-        
+
         socket.emit('live-update', filtered);
       }
     });
